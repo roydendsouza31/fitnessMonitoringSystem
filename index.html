@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Website</title>
+    <style>
+        #block {
+            background-color: Blue;
+            width: 100px;
+            height: 100px;
+            margin: 10px;
+            border-radius: 20%;
+        }
+
+        #button {
+            background-color: white;
+            border-color: blueviolet;
+        }
+
+        #data {
+            margin: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="button" onclick="requestDevice()">Connect to Arduino</button>
+    <div id="block"></div>
+    <p id="data"></p>
+
+
+    <script>
+        let serviceUuid = "e267751a-ae76-11eb-8529-0242ac130003";
+        let characteristicUuid = "00002a19-0000-1000-8000-00805f9b34fb";
+        let device;
+        let server;
+        let service;
+        let characteristic;
+        let value;
+
+        async function requestDevice() {
+            try {
+
+                console.log("Searching for Fitness Band...");
+
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'Fitness Band' }],
+                    optionalServices: [serviceUuid]
+                });
+
+                console.log("Connected to Fitness Band");
+
+                const abortController = new AbortController();
+
+                server = await device.gatt.connect();
+                service = await server.getPrimaryService(serviceUuid);
+                characteristic = await service.getCharacteristic(characteristicUuid);
+                await characteristic.startNotifications();
+
+                console.log('Watching advertisements from "' + device.name + '"...');
+                device.watchAdvertisements({ signal: abortController.signal })
+                    .catch(error => {
+                        console.log('Error: ' + error);
+                    });
+
+                characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+
+                function handleNotifications(event) {
+                    value = event.target.value.getInt8();
+                    console.log(value);
+                    if (value) {
+                        document.getElementById("block").style.backgroundColor = "red";
+                    } else {
+                        document.getElementById("block").style.backgroundColor = "blue";
+                    }
+
+                }
+
+                //let buttonState = await characteristic.readValue();
+                //console.log(buttonState.getUint8(0));
+
+            } catch (error) {
+                console.log('Failed: ' + error);
+            }
+        }
+    </script>
+</body>
+
+</html>
